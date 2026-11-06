@@ -10,7 +10,7 @@ import { getCurrentSession } from './auth.js';
 export const API_BASE_URL = window.ENV?.API_BASE_URL || (
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000/api'
-    : '/api'
+    : 'https://uniora-backend.onrender.com/api'
 );
 if (typeof window !== 'undefined') {
   window.UNIORA_API_BASE_URL = API_BASE_URL;
