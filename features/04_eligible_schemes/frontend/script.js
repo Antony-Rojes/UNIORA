@@ -2582,7 +2582,7 @@ async function initFeature() {
         verified_documents: verifiedDocs.map(d => d.document_type || d.document_name || d.name || "")
       };
 
-      const res = await fetch("http://localhost:8000/api/schemes/evaluate", {
+      const res = await fetch((window.UNIORA_API_BASE_URL || window.ENV?.API_BASE_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:8000/api" : "/api")) + "/schemes/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

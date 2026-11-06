@@ -1,0 +1,1560 @@
+import { supabase } from '../../../common/js/supabase.js';
+import { getCurrentUser, getCurrentSession, onAuthStateChange } from '../../../common/js/auth.js';
+import { initNavbarAuth, initActiveNavLink, initNavbarMenu } from '../../../common/js/navbar.js';
+
+const SECRET_KEY = 'uniora_secure_2024';
+
+// ---------------------------------------------------------------------------
+// COMPREHENSIVE SCHEME CATALOG DATASET (16+ Welfare Schemes)
+// ---------------------------------------------------------------------------
+
+const FALLBACK_SCHEMES = [
+  {
+    id: 'TN-HE-001',
+    name: 'Tamil Pudhalvan Scheme',
+    department: 'Higher Education Department (Tamil Nadu)',
+    level: 'Tamil Nadu',
+    summary: '₹1,000 monthly higher education stipend for male students from TN Govt schools.',
+    benefits: '₹1,000 per month direct bank transfer throughout undergraduate degree duration.',
+    application_url: 'https://www.tn.gov.in',
+    requiredFields: ['age', 'gender', 'state', 'occupation', 'annual_income', 'education'],
+    requiredDocs: ['Aadhaar Card', 'Bonafide Certificate', 'Bank Passbook', '12th Marksheet'],
+    rules: { minAge: 17, maxAge: 25, gender: 'Male', state: 'Tamil Nadu', occupation: 'Student', maxIncome: 300000 }
+  },
+  {
+    id: 'TN-SW-002',
+    name: 'Pudhumai Penn Scheme (Moovalur Ramamirtham)',
+    department: 'Social Welfare & Women Rights (TN)',
+    level: 'Tamil Nadu',
+    summary: '₹1,000 monthly higher education assistance for girl students from TN Govt schools.',
+    benefits: '₹1,000/month direct bank transfer until degree/diploma completion.',
+    application_url: 'https://www.penkalvi.tn.gov.in',
+    requiredFields: ['age', 'gender', 'state', 'occupation', 'annual_income', 'education'],
+    requiredDocs: ['Aadhaar Card', 'Bonafide Certificate', 'Bank Passbook', '10th Marksheet'],
+    rules: { minAge: 17, maxAge: 26, gender: 'Female', state: 'Tamil Nadu', occupation: 'Student', maxIncome: 350000 }
+  },
+  {
+    id: 'TN-SD-003',
+    name: 'Naan Mudhalvan Scheme',
+    department: 'Skill Development & Employment (TN)',
+    level: 'Tamil Nadu',
+    summary: 'Industry-aligned skill development and job placement program for students.',
+    benefits: 'Free certification courses, industry hackathons, and campus placement assistance.',
+    application_url: 'https://www.naanmudhalvan.tn.gov.in',
+    requiredFields: ['age', 'state', 'occupation', 'education'],
+    requiredDocs: ['Aadhaar Card', 'Bonafide Certificate'],
+    rules: { minAge: 17, maxAge: 29, state: 'Tamil Nadu', occupation: 'Student' }
+  },
+  {
+    id: 'TN-SW-004',
+    name: 'Kalaignar Magalir Urimai Thogai',
+    department: 'Social Welfare & Women Rights (TN)',
+    level: 'Tamil Nadu',
+    summary: '₹1,000/month basic income entitlement for female heads of families.',
+    benefits: '₹1,000 direct benefit transfer on the 15th of every month.',
+    application_url: 'https://kmut.tn.gov.in',
+    requiredFields: ['age', 'gender', 'state', 'annual_income', 'social_category'],
+    requiredDocs: ['Smart Ration Card', 'Aadhaar Card', 'Electricity Bill', 'Bank Passbook'],
+    rules: { minAge: 21, maxAge: 65, gender: 'Female', state: 'Tamil Nadu', maxIncome: 250000 }
+  },
+  {
+    id: 'TN-RD-005',
+    name: 'Kalaignar Kanavu Illam',
+    department: 'Rural Development (TN)',
+    level: 'Tamil Nadu',
+    summary: 'Reconstruction and building of safe concrete houses in rural Tamil Nadu.',
+    benefits: '₹3.5 Lakh financial unit grant for house construction.',
+    application_url: 'https://tnrd.tn.gov.in',
+    requiredFields: ['age', 'state', 'annual_income', 'residence'],
+    requiredDocs: ['Land Ownership Document', 'Income Certificate', 'Smart Ration Card', 'Aadhaar Card'],
+    rules: { minAge: 21, maxAge: 75, state: 'Tamil Nadu', maxIncome: 200000, residence: 'Rural' }
+  },
+  {
+    id: 'TN-BC-006',
+    name: 'Post-Matric Scholarship for BC / MBC Students',
+    department: 'Backward Classes & Minorities Welfare (TN)',
+    level: 'Tamil Nadu',
+    summary: 'Government tuition fee waiver & maintenance grant for college study.',
+    benefits: 'Full tuition fees reimbursement and monthly maintenance allowances.',
+    application_url: 'https://bcmbcmw.tn.gov.in',
+    requiredFields: ['age', 'state', 'occupation', 'annual_income', 'social_category', 'education'],
+    requiredDocs: ['Community Certificate', 'Income Certificate', 'Bonafide Certificate', '12th Marksheet', 'Bank Passbook'],
+    rules: { minAge: 17, maxAge: 30, state: 'Tamil Nadu', occupation: 'Student', maxIncome: 250000, social_category: 'OBC' }
+  },
+  {
+    id: 'TN-AD-011',
+    name: 'Chief Minister Overseas Scholarship for SC/ST Students',
+    department: 'Adi Dravidar and Tribal Welfare (TN)',
+    level: 'Tamil Nadu',
+    summary: 'Financial funding for postgraduate masters and PhD programs abroad.',
+    benefits: 'Up to ₹36 Lakh for overseas masters degree tuition and living stipend.',
+    application_url: 'https://adw.tn.gov.in',
+    requiredFields: ['age', 'state', 'occupation', 'annual_income', 'social_category', 'education'],
+    requiredDocs: ['Community Certificate', 'Income Certificate', 'Passport', 'Undergraduate (UG) Degree', '12th Marksheet'],
+    rules: { minAge: 20, maxAge: 35, state: 'Tamil Nadu', occupation: 'Student', maxIncome: 800000, social_category: 'SC' }
+  },
+  {
+    id: 'TN-HEALTH-013',
+    name: 'Chief Minister Comprehensive Health Insurance Scheme (CMCHIS)',
+    department: 'Health & Family Welfare (TN)',
+    level: 'Tamil Nadu',
+    summary: 'Cashless hospital coverage up to ₹5 Lakh per year for families in TN.',
+    benefits: 'Cashless treatment coverage up to ₹5,00,000 per family per year.',
+    application_url: 'https://cmchistn.com',
+    requiredFields: ['age', 'state', 'annual_income'],
+    requiredDocs: ['Smart Ration Card', 'Aadhaar Card', 'Income Certificate'],
+    rules: { minAge: 0, maxAge: 100, state: 'Tamil Nadu', maxIncome: 120000 }
+  },
+  {
+    id: 'GOI-MNRE-007',
+    name: 'PM Surya Ghar: Muft Bijli Yojana',
+    department: 'Ministry of New & Renewable Energy (Central)',
+    level: 'Central',
+    summary: 'Rooftop solar subsidy providing up to 300 units free monthly electricity for homes.',
+    benefits: 'Direct financial subsidy of ₹30,000 to ₹78,000 credited to home owner bank account.',
+    application_url: 'https://pmsuryaghar.gov.in',
+    requiredFields: ['age', 'state', 'annual_income', 'employment'],
+    requiredDocs: ['Electricity Bill', 'Aadhaar Card', 'Bank Passbook'],
+    rules: { minAge: 18, maxAge: 80, state: 'All', maxIncome: 1500000 }
+  },
+  {
+    id: 'GOI-MSME-008',
+    name: 'PM Vishwakarma Scheme',
+    department: 'Ministry of MSME (Central)',
+    level: 'Central',
+    summary: 'Collateral-free subsidized credit & toolkit grants for traditional artisans & craftspeople.',
+    benefits: '₹15,000 e-voucher toolkit grant and collateral-free enterprise loan up to ₹3 Lakh at 5%.',
+    application_url: 'https://pmvishwakarma.gov.in',
+    requiredFields: ['age', 'state', 'occupation', 'annual_income'],
+    requiredDocs: ['Aadhaar Card', 'Bank Passbook', 'Smart Ration Card'],
+    rules: { minAge: 18, maxAge: 60, occupation: 'Daily Wage / Artisan', maxIncome: 400000 }
+  },
+  {
+    id: 'GOI-HFW-009',
+    name: 'Ayushman Bharat - PM-JAY',
+    department: 'Ministry of Health & Family Welfare (Central)',
+    level: 'Central',
+    summary: '₹5 Lakh annual secondary & tertiary health insurance coverage.',
+    benefits: 'Cashless hospitalization coverage up to ₹5,00,000 per family per year.',
+    application_url: 'https://pmjay.gov.in',
+    requiredFields: ['age', 'state', 'annual_income'],
+    requiredDocs: ['Smart Ration Card', 'Aadhaar Card', 'BPL Certificate'],
+    rules: { minAge: 0, maxAge: 100, state: 'All', maxIncome: 250000 }
+  },
+  {
+    id: 'GOI-AGRI-010',
+    name: 'PM Kisan Samman Nidhi',
+    department: 'Ministry of Agriculture & Farmers Welfare (Central)',
+    level: 'Central',
+    summary: '₹6,000 annual income support for landholding farming families.',
+    benefits: '₹6,000 per year directly credited to farmer bank account in 3 installments.',
+    application_url: 'https://pmkisan.gov.in',
+    requiredFields: ['age', 'state', 'occupation', 'annual_income'],
+    requiredDocs: ['Land Ownership Document', 'Aadhaar Card', 'Bank Passbook'],
+    rules: { minAge: 18, maxAge: 85, occupation: 'Farmer', maxIncome: 500000 }
+  },
+  {
+    id: 'GOI-DIS-012',
+    name: 'National Scholarship for Students with Disabilities',
+    department: 'Ministry of Social Justice & Empowerment (Central)',
+    level: 'Central',
+    summary: 'Higher education scholarship grant for differently-abled scholars.',
+    benefits: 'Full tuition fee waiver plus monthly disability assistive maintenance grant.',
+    application_url: 'https://scholarships.gov.in',
+    requiredFields: ['age', 'state', 'occupation', 'annual_income', 'disability'],
+    requiredDocs: ['UDID Card', 'Bonafide Certificate', 'Income Certificate', 'Bank Passbook'],
+    rules: { minAge: 16, maxAge: 40, occupation: 'Student', maxIncome: 300000, disability: 'Yes' }
+  },
+  {
+    id: 'GOI-PMEGP-015',
+    name: 'Prime Minister Employment Generation Programme (PMEGP)',
+    department: 'Ministry of MSME (Central)',
+    level: 'Central',
+    summary: 'Credit-linked subsidy scheme for setting up new micro-enterprises.',
+    benefits: 'Subsidies up to 35% on project costs up to ₹50 Lakh for manufacturing.',
+    application_url: 'https://kviconline.gov.in',
+    requiredFields: ['age', 'state', 'annual_income', 'employment', 'education'],
+    requiredDocs: ['Aadhaar Card', '10th Marksheet', 'Bank Passbook', 'Project Report'],
+    rules: { minAge: 18, maxAge: 65, state: 'All' }
+  },
+  {
+    id: 'GOI-MUDRA-016',
+    name: 'Pradhan Mantri MUDRA Yojana (PMMY)',
+    department: 'Ministry of Finance (Central)',
+    level: 'Central',
+    summary: 'Collateral-free business loans up to ₹10 Lakh for non-corporate micro units.',
+    benefits: 'Loans up to ₹10 Lakh divided into Shishu, Kishor, and Tarun categories.',
+    application_url: 'https://mudra.org.in',
+    requiredFields: ['age', 'state', 'occupation'],
+    requiredDocs: ['Aadhaar Card', 'PAN Card', 'Bank Passbook', 'Udyam Certificate'],
+    rules: { minAge: 18, maxAge: 65, state: 'All' }
+  }
+];
+
+// ---------------------------------------------------------------------------
+// GLOBAL STATE
+// ---------------------------------------------------------------------------
+
+const state = {
+  user: null,
+  profile: null,
+  verifiedDocs: [],
+  schemeCatalog: [],
+  schemeCatalogError: '',
+  selectedSchemeId: null,
+  selectedDistrict: '',
+  selectedTaluk: '',
+  taluksData: {},
+  evaluatedSchemes: [],
+  backendEvaluations: {},
+  backendEvaluationRequestId: 0,
+  showEligibleOnlyMode: true
+};
+
+// ---------------------------------------------------------------------------
+// UTILITY & AUTH HELPERS
+// ---------------------------------------------------------------------------
+
+function toArray(val) {
+  return Array.isArray(val) ? val : [];
+}
+
+function getCachedSessionUser() {
+  try {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
+      const rawSession = localStorage.getItem(key);
+      if (!rawSession) continue;
+      const parsedSession = JSON.parse(rawSession);
+      if (parsedSession?.user) {
+        return parsedSession.user;
+      }
+    }
+  } catch (error) {
+    console.warn('[UNIORA Readiness] Cached session read warning:', error);
+  }
+  return null;
+}
+
+const READINESS_API_BASE = window.UNIORA_API_BASE_URL || window.ENV?.API_BASE_URL || (
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000/api'
+    : '/api'
+);
+
+let lastReadinessAccessTokenStatus = null;
+
+async function getReadinessAccessToken() {
+  let accessToken = null;
+  try {
+    const session = await getCurrentSession();
+    accessToken = session?.access_token || null;
+  } catch (error) {
+    console.warn('[UNIORA Readiness] getCurrentSession notice:', error);
+  }
+
+  if (!accessToken && supabase?.auth?.getSession) {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      accessToken = data?.session?.access_token || null;
+    } catch (error) {
+      console.warn('[UNIORA Readiness] Supabase session fallback notice:', error);
+    }
+  }
+
+  const tokenFound = Boolean(accessToken);
+  if (lastReadinessAccessTokenStatus !== tokenFound) {
+    console.info(`[UNIORA Readiness] Active Supabase access token ${tokenFound ? 'found' : 'not found'}`);
+    lastReadinessAccessTokenStatus = tokenFound;
+  }
+  return accessToken;
+}
+
+function decryptData(b64) {
+  try {
+    let text = atob(b64);
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+      result += String.fromCharCode(text.charCodeAt(i) ^ SECRET_KEY.charCodeAt(i % SECRET_KEY.length));
+    }
+    return JSON.parse(decodeURIComponent(result));
+  } catch (error) {
+    return [];
+  }
+}
+
+function getStoredDocs() {
+  if (!state.user) return [];
+
+  try {
+    const raw = localStorage.getItem('uniora_verified_docs');
+    return raw ? decryptData(raw) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function buildInitialProfile() {
+  const isGuest = !state.user;
+  const fallback = {
+    age: '',
+    gender: '',
+    state: isGuest ? '' : 'Tamil Nadu',
+    district: isGuest ? '' : 'Chennai',
+    residence: isGuest ? '' : 'Urban',
+    occupation: isGuest ? '' : 'Student',
+    annual_income: '',
+    incomeNumeric: null,
+    social_category: '',
+    marital_status: '',
+    disability: isGuest ? '' : 'No',
+    education: '',
+    employment: '',
+    special: isGuest ? '' : 'None',
+    date_of_birth: ''
+  };
+
+  if (isGuest) {
+    try {
+      const raw = sessionStorage.getItem('uniora_guest_demographic_profile');
+      if (!raw) return fallback;
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return fallback;
+
+      return {
+        ...fallback,
+        ...parsed,
+        annual_income: parsed.annual_income || parsed.incomeNumeric || '',
+        incomeNumeric: parsed.incomeNumeric ?? parseIncomeValue(parsed.incomeRange),
+        social_category: parsed.social_category || parsed.category || '',
+        marital_status: parsed.marital_status || parsed.maritalStatus || ''
+      };
+    } catch (error) {
+      console.warn('[UNIORA Readiness] Unable to read guest profile from this session:', error);
+      return fallback;
+    }
+  }
+
+  try {
+    const raw = sessionStorage.getItem('uniora_guest_demographic_profile') || localStorage.getItem('uniora_cached_profile');
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return { ...fallback, ...parsed };
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function saveProfileToSession(profile) {
+  if (!state.user) return;
+
+  try {
+    const str = JSON.stringify(profile);
+    sessionStorage.setItem('uniora_guest_demographic_profile', str);
+    localStorage.setItem('uniora_cached_profile', str);
+  } catch (error) {
+    console.warn('[UNIORA Readiness] Unable to save profile to storage:', error);
+  }
+}
+
+function parseIncomeValue(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const cleaned = String(val).replace(/[₹,\s]/g, '').replace(/[^\d.-]/g, '');
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
+function normalizeProfile(profile) {
+  const base = buildInitialProfile();
+  const source = profile || {};
+  const rawCategory = String(source.social_category || source.category || source.socialCategory || '').trim().toLowerCase();
+  const socialCategory = rawCategory.includes('scheduled caste') || rawCategory === 'sc'
+    ? 'SC'
+    : rawCategory.includes('scheduled tribe') || rawCategory === 'st'
+      ? 'ST'
+      : rawCategory.includes('mbc') || rawCategory.includes('dnc')
+        ? 'MBC/DNC'
+        : rawCategory.includes('obc') || rawCategory.includes('backward class') || rawCategory === 'bc' || rawCategory.includes('bcm')
+          ? 'OBC'
+          : rawCategory.includes('general') || rawCategory === 'oc' || rawCategory === 'fc'
+            ? 'General'
+            : source.social_category || source.category || source.socialCategory || '';
+  const rawOccupation = String(source.occupation || '').trim().toLowerCase();
+  const occupation = rawOccupation.includes('student')
+    ? 'Student'
+    : rawOccupation.includes('farmer') || rawOccupation.includes('agriculture')
+      ? 'Farmer'
+      : rawOccupation.includes('artisan') || rawOccupation.includes('wage') || rawOccupation.includes('gig')
+        ? 'Daily Wage / Artisan'
+        : rawOccupation.includes('self') || rawOccupation.includes('business')
+          ? 'Self-Employed'
+          : rawOccupation.includes('govt') || rawOccupation.includes('government') || rawOccupation.includes('private') || rawOccupation.includes('salaried') || rawOccupation.includes('employee')
+            ? 'Salaried'
+            : rawOccupation.includes('unemployed') || rawOccupation.includes('looking') || rawOccupation.includes('retired') || rawOccupation.includes('homemaker')
+              ? 'Unemployed'
+              : rawOccupation.includes('other')
+                ? 'Other'
+                : source.occupation || '';
+  const annualIncome = source.annual_income || source.annualIncome || source.incomeNumeric || '';
+  const merged = {
+    ...base,
+    ...source,
+    age: source.age || base.age,
+    occupation,
+    annual_income: annualIncome,
+    incomeNumeric: source.incomeNumeric ?? parseIncomeValue(source.annual_income ?? source.annualIncome),
+    social_category: socialCategory,
+    marital_status: source.marital_status || source.maritalStatus || '',
+    disability: source.disability ?? source.disability_status ?? 'No',
+    education: source.education || source.education_level || '',
+    employment: source.employment ?? source.employment_status ?? '',
+    special: source.special ?? source.special_beneficiary_status ?? 'None'
+  };
+
+  if (!merged.age && merged.date_of_birth) {
+    const dob = new Date(merged.date_of_birth);
+    if (!isNaN(dob.getTime())) {
+      const diff = Date.now() - dob.getTime();
+      merged.age = Math.abs(new Date(diff).getUTCFullYear() - 1970);
+    }
+  }
+
+  if (merged.annual_income && !merged.incomeNumeric) {
+    merged.incomeNumeric = parseIncomeValue(merged.annual_income);
+  }
+
+  return merged;
+}
+
+function getLabelForField(field) {
+  const labels = {
+    age: 'Age (Years)',
+    gender: 'Gender',
+    state: 'State of Residence',
+    district: 'District',
+    occupation: 'Occupation Status',
+    annual_income: 'Annual Household Income (₹)',
+    education: 'Education Qualification',
+    employment: 'Employment Status',
+    social_category: 'Social Category / Caste',
+    residence: 'Residence Type',
+    disability: 'Disability Status',
+    marital_status: 'Marital Status'
+  };
+  return labels[field] || field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getFieldValue(profile, field) {
+  if (!profile) return '';
+  if (field === 'age') return profile.age ?? '';
+  if (field === 'annual_income') return profile.annual_income ?? profile.incomeNumeric ?? '';
+  return profile[field] ?? '';
+}
+
+function hasFilledValue(val) {
+  if (val === null || val === undefined) return false;
+  if (typeof val === 'string') return val.trim() !== '';
+  return true;
+}
+
+function isDocVerified(requiredName, verifiedDocsList) {
+  const req = String(requiredName || '').toLowerCase().trim();
+  for (const doc of verifiedDocsList) {
+    const docType = String(doc.document_type || doc.name || doc.document_name || '').toLowerCase().trim();
+    if (req === docType || req.includes(docType) || docType.includes(req)) return true;
+    if (req.includes('bonafide') && docType.includes('bonafide')) return true;
+    if (req.includes('passbook') && docType.includes('passbook')) return true;
+    if (req.includes('marksheet') && (docType.includes('marksheet') || docType.includes('degree') || docType.includes('diploma'))) return true;
+    if (req.includes('income') && docType.includes('income')) return true;
+    if (req.includes('community') && docType.includes('community')) return true;
+    if ((req.includes('aadhaar') || req.includes('identity')) && (docType.includes('aadhaar') || docType.includes('voter') || docType.includes('pan') || docType.includes('passport'))) return true;
+    if (req.includes('ration') && docType.includes('ration')) return true;
+    if (req.includes('electricity') && docType.includes('electricity')) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// DATA FETCHING & SCHEME EVALUATION
+// ---------------------------------------------------------------------------
+
+async function fetchSchemeCatalog() {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    let response;
+    try {
+      response = await fetch(
+        'https://docs.google.com/spreadsheets/d/1MTWk1hOKSt3ZEl-mPiQAYZzmpRg3HgLD5BYA3M5VhXI/gviz/tq?tqx=out:csv&gid=1493062875',
+        { cache: 'no-store', signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!response.ok) throw new Error(`Live schemes request failed (HTTP ${response.status})`);
+
+    const csv = await response.text();
+    const rows = parseSchemeCsv(csv);
+    if (rows.length < 2) throw new Error('Live schemes source returned no scheme rows');
+
+    const headers = rows[0].map(header => header.trim().toLowerCase());
+    const rawSchemes = rows.slice(1).map(row => {
+      const record = {};
+      headers.forEach((header, index) => {
+        if (header) record[header] = row[index] || '';
+      });
+      return record;
+    }).filter(scheme => {
+      const name = String(scheme.scheme_name || scheme.name || '').trim();
+      const id = String(scheme.scheme_id || scheme.id || '').trim();
+      return name && id && !name.startsWith('```') && !id.startsWith('```');
+    });
+
+    if (rawSchemes.length === 0) throw new Error('Live schemes source contained no valid scheme records');
+
+    state.schemeCatalog = rawSchemes.map((scheme, index) => {
+      const name = String(scheme.scheme_name || scheme.name).trim();
+      const id = String(scheme.scheme_id || scheme.id || `GS-${index + 1}`).trim();
+      const department = String(scheme.issuing_department || scheme.department || 'Government Department').trim();
+      const stateRequirement = String(scheme.eligibility_state || scheme.state || 'All').trim();
+      const categoryType = String(scheme.category_type || scheme.category || '').toLowerCase();
+      const level = categoryType.includes('tamil') || department.toLowerCase().includes('tamil')
+        || stateRequirement.toLowerCase().includes('tamil') || name.toLowerCase().includes('tamil')
+        || name.toLowerCase().includes('pudhalvan')
+        ? 'Tamil Nadu'
+        : categoryType.includes('state') && stateRequirement !== 'All'
+          ? stateRequirement
+          : 'Central';
+      const requiredDocs = String(scheme.required_documents || scheme.mandatory_documents || '')
+        .split(/[;\n•|]+/)
+        .map(doc => doc.replace(/^\s*[-–*]+\s*/, '').trim())
+        .filter(doc => doc.length > 1);
+      const minAge = parseIncomeValue(scheme.min_age);
+      const maxAge = parseIncomeValue(scheme.max_age);
+      const maxIncome = parseIncomeValue(scheme.income_limit_annual);
+      const gender = String(scheme.gender || 'All').trim();
+      const socialCategory = String(scheme.social_category || 'All').trim();
+      const occupation = String(scheme.occupation_criteria || 'All').trim();
+      const education = String(scheme.education_criteria || scheme.education_requirement || '').trim();
+      const requiredFields = [];
+      if (minAge !== null || maxAge !== null) requiredFields.push('age');
+      if (gender.toLowerCase() !== 'all') requiredFields.push('gender');
+      if (stateRequirement.toLowerCase() !== 'all') requiredFields.push('state');
+      if (maxIncome !== null) requiredFields.push('annual_income');
+      if (socialCategory.toLowerCase() !== 'all') requiredFields.push('social_category');
+      if (occupation.toLowerCase() !== 'all') requiredFields.push('occupation');
+      if (education) requiredFields.push('education');
+
+      const description = String(scheme.description || scheme.short_description || scheme.benefits || '').trim();
+      const disabilityRequirement = String(scheme.disability_status || scheme['disability status'] || scheme.disability || scheme.pwd || '').trim();
+      const hasDisabilityRequirement = /^(yes|true)$/i.test(disabilityRequirement)
+        || /pwd|divyang|differently/i.test(disabilityRequirement)
+        || /asiim|with disabilities|divyangjan|differently abled/i.test(`${id} ${name}`)
+        || /sc divyang|differently-abled youth/i.test(`${scheme.other_conditions || ''} ${description}`);
+
+      return {
+        id,
+        name,
+        department,
+        level,
+        summary: description,
+        benefits: String(scheme.benefits || '').trim(),
+        application_url: scheme.official_source_url || scheme.application_url || '#',
+        requiredFields,
+        requiredDocs: requiredDocs.length ? requiredDocs : ['Aadhaar Card', 'Bank Account Details', 'Income Certificate'],
+        rules: {
+          minAge,
+          maxAge,
+          gender,
+          state: stateRequirement,
+          maxIncome,
+          occupation,
+          social_category: socialCategory,
+          disability: hasDisabilityRequirement ? 'Yes' : 'All',
+          marital_status: scheme.marital_status || '',
+          special: scheme.special_beneficiary_status || ''
+        }
+      };
+    });
+    state.schemeCatalogError = '';
+    console.info(`[UNIORA Readiness] Loaded ${state.schemeCatalog.length} live schemes from the Eligible Schemes catalog`);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      state.schemeCatalogError = 'The live scheme catalog request timed out. Please try again.';
+    } else {
+      state.schemeCatalogError = 'Unable to load the live scheme catalog. Please try again later.';
+    }
+    console.error('[UNIORA Readiness] Failed to load live schemes from the Eligible Schemes catalog:', error);
+    state.schemeCatalog = [];
+  }
+}
+
+function parseSchemeCsv(text) {
+  const rows = [];
+  let row = [];
+  let value = '';
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (quoted) {
+      if (char === '"' && next === '"') {
+        value += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        value += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ',') {
+      row.push(value.trim());
+      value = '';
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && next === '\n') index += 1;
+      row.push(value.trim());
+      if (row.some(cell => cell)) rows.push(row);
+      row = [];
+      value = '';
+    } else {
+      value += char;
+    }
+  }
+
+  if (value || row.length) {
+    row.push(value.trim());
+    if (row.some(cell => cell)) rows.push(row);
+  }
+  return rows;
+}
+
+function evaluateSchemeReadiness(scheme) {
+  const profile = state.profile || {};
+  const verifiedList = state.verifiedDocs || [];
+
+  const requiredFields = scheme.requiredFields && scheme.requiredFields.length > 0 
+    ? scheme.requiredFields 
+    : ['age', 'gender', 'state', 'annual_income', 'occupation'];
+  const requiredDocs = toArray(scheme.requiredDocs).length > 0
+    ? toArray(scheme.requiredDocs)
+    : ['Aadhaar Card'];
+
+  // Check demographic fields
+  const missingFields = [];
+  const filledFields = [];
+  requiredFields.forEach(field => {
+    if (hasFilledValue(getFieldValue(profile, field))) {
+      filledFields.push(field);
+    } else {
+      missingFields.push(field);
+    }
+  });
+
+  // Evaluate Demographic Rules Match
+  let isDemographicEligible = true;
+  const rules = scheme.rules || {};
+  const userAge = Number(getFieldValue(profile, 'age')) || null;
+  const userGender = String(getFieldValue(profile, 'gender') || '').trim().toLowerCase();
+  const userState = String(getFieldValue(profile, 'state') || '').trim().toLowerCase();
+  const userIncome = parseIncomeValue(getFieldValue(profile, 'annual_income')) ?? profile.incomeNumeric;
+  const userOccupation = String(getFieldValue(profile, 'occupation') || '').trim().toLowerCase();
+  const userCategory = String(getFieldValue(profile, 'social_category') || '').trim().toLowerCase();
+
+  if ((rules.minAge !== null && rules.minAge !== undefined) || (rules.maxAge !== null && rules.maxAge !== undefined)) {
+    if (userAge === null || (rules.minAge !== null && rules.minAge !== undefined && userAge < rules.minAge)
+        || (rules.maxAge !== null && rules.maxAge !== undefined && userAge > rules.maxAge)) isDemographicEligible = false;
+  }
+  if (rules.gender && rules.gender.toLowerCase() !== 'all' && userGender !== rules.gender.toLowerCase()) isDemographicEligible = false;
+  if (rules.state && rules.state.toLowerCase() !== 'all' && userState !== rules.state.toLowerCase()) isDemographicEligible = false;
+  if (rules.maxIncome !== null && rules.maxIncome !== undefined && (userIncome === null || userIncome > rules.maxIncome)) isDemographicEligible = false;
+
+  const occupationRule = String(rules.occupation || '').trim().toLowerCase();
+  const occupationIsOpen = !occupationRule || ['all', 'any', 'resident'].includes(occupationRule);
+  if (!occupationIsOpen) {
+    const userIsOther = ['other', 'others'].includes(userOccupation);
+    const requirementIsStandard = [
+      'student', 'scholar', 'college', 'school',
+      'farmer', 'agriculture', 'cultivator', 'kisan',
+      'self-employed', 'self employed', 'business', 'entrepreneur',
+      'unemployed', 'job seeker', 'jobseeker',
+      'daily wage', 'artisan', 'labourer', 'laborer', 'casual worker', 'gig',
+      'salaried', 'employee', 'govt', 'government', 'private employee', 'service'
+    ].some(keyword => occupationRule.includes(keyword));
+    if (!userOccupation || (userIsOther
+      ? requirementIsStandard && !occupationRule.includes('other')
+      : !(occupationRule === userOccupation
+        || occupationRule.includes(userOccupation)
+        || (userOccupation === 'student' && /student|scholar|college|school/.test(occupationRule))
+        || (userOccupation === 'farmer' && /farmer|agriculture|cultivator|kisan/.test(occupationRule))
+        || (userOccupation === 'self-employed' && /self.?employed|business|entrepreneur/.test(occupationRule))
+        || (userOccupation === 'unemployed' && /unemployed|job.?seeker/.test(occupationRule))
+        || (userOccupation === 'daily wage / artisan' && /daily wage|artisan|labou?rer|casual worker|gig/.test(occupationRule))
+        || (userOccupation === 'salaried' && /salaried|employee|govt|government|private employee|service/.test(occupationRule))))) {
+      isDemographicEligible = false;
+    }
+  }
+  if (rules.social_category && !['all', 'any', 'general/all'].includes(rules.social_category.trim().toLowerCase())
+      && userCategory !== rules.social_category.trim().toLowerCase()) isDemographicEligible = false;
+  const userDisability = String(getFieldValue(profile, 'disability') || '').toLowerCase();
+  if (rules.disability === 'Yes' && !['yes', 'true'].includes(userDisability)) isDemographicEligible = false;
+  if (!state.user && missingFields.length > 0) isDemographicEligible = false;
+
+  // Check documents
+  const verifiedMatchedDocs = [];
+  const missingDocs = [];
+  requiredDocs.forEach(doc => {
+    if (isDocVerified(doc, verifiedList)) {
+      verifiedMatchedDocs.push(doc);
+    } else {
+      missingDocs.push(doc);
+    }
+  });
+
+  const totalItems = requiredFields.length + requiredDocs.length;
+  const completedItems = filledFields.length + verifiedMatchedDocs.length;
+  const readinessScore = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const is100PercentReady = missingFields.length === 0 && missingDocs.length === 0;
+
+  return {
+    ...scheme,
+    requiredFields,
+    requiredDocs,
+    missingFields,
+    filledFields,
+    verifiedMatchedDocs,
+    missingDocs,
+    readinessScore,
+    is100PercentReady,
+    isDemographicEligible,
+    totalItems,
+    completedItems
+  };
+}
+
+function applyBackendEvaluation(scheme) {
+  const result = state.backendEvaluations[scheme.id];
+  if (!result) return scheme;
+
+  const requiredFields = toArray(result.required_fields);
+  const missingFields = toArray(result.missing_fields);
+  const requiredDocs = toArray(result.required_documents);
+  const missingDocs = toArray(result.missing_documents);
+  const totalItems = requiredFields.length + requiredDocs.length;
+  const completedItems = totalItems - missingFields.length - missingDocs.length;
+
+  return {
+    ...scheme,
+    requiredFields,
+    filledFields: requiredFields.filter(field => !missingFields.includes(field)),
+    requiredDocs,
+    missingFields,
+    missingDocs,
+    verifiedMatchedDocs: requiredDocs.filter(doc => !missingDocs.includes(doc)),
+    readinessScore: result.readiness_score ?? scheme.readinessScore,
+    is100PercentReady: result.is_ready ?? scheme.is100PercentReady,
+    isDemographicEligible: result.is_demographic_eligible ?? scheme.isDemographicEligible,
+    totalItems,
+    completedItems
+  };
+}
+
+async function fetchSelectedSchemeEvaluation() {
+  const hadBackendEvaluations = Object.keys(state.backendEvaluations).length > 0;
+  state.backendEvaluations = {};
+  if (hadBackendEvaluations) renderAllReadinessPanels();
+
+  const schemeId = state.selectedSchemeId;
+  if (!schemeId) {
+    console.info('[UNIORA Readiness] Backend evaluation skipped: no selected scheme');
+    return;
+  }
+
+  const requestId = ++state.backendEvaluationRequestId;
+  try {
+    const accessToken = await getReadinessAccessToken();
+    if (!accessToken) {
+      console.info('[UNIORA Readiness] Backend evaluation skipped: no access token');
+      return;
+    }
+
+    const url = new URL(`${READINESS_API_BASE}/readiness/evaluate`, window.location.origin);
+    url.searchParams.set('scheme_id', schemeId);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok) throw new Error('Backend readiness evaluation failed');
+
+    const data = await response.json();
+    const result = toArray(data?.results).find(item => String(item.scheme_id) === String(schemeId));
+    if (!result) throw new Error('Backend returned no result for selected scheme');
+    if (requestId !== state.backendEvaluationRequestId || state.selectedSchemeId !== schemeId) return;
+
+    state.backendEvaluations[schemeId] = result;
+    console.info(`[UNIORA Readiness] Backend evaluation succeeded for ${schemeId}`);
+    renderAllReadinessPanels();
+  } catch (error) {
+    if (requestId !== state.backendEvaluationRequestId || state.selectedSchemeId !== schemeId) return;
+    console.warn(`[UNIORA Readiness] Backend evaluation failed for ${schemeId}:`, error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// RENDERERS
+// ---------------------------------------------------------------------------
+
+function setupToggleFilterButtons() {
+  const eligibleOnlyBtn = document.getElementById('toggleEligibleOnlyBtn');
+  const allSchemesBtn = document.getElementById('toggleAllSchemesBtn');
+
+  if (eligibleOnlyBtn && allSchemesBtn) {
+    const syncToggleState = () => {
+      eligibleOnlyBtn.classList.toggle('active', state.showEligibleOnlyMode);
+      allSchemesBtn.classList.toggle('active', !state.showEligibleOnlyMode);
+    };
+
+    syncToggleState();
+
+    eligibleOnlyBtn.onclick = () => {
+      state.showEligibleOnlyMode = true;
+      syncToggleState();
+      renderSchemeSelector();
+      renderAllReadinessPanels();
+    };
+
+    allSchemesBtn.onclick = () => {
+      state.showEligibleOnlyMode = false;
+      syncToggleState();
+      renderSchemeSelector();
+      renderAllReadinessPanels();
+    };
+  }
+}
+
+function renderSchemeSelector() {
+  const selector = document.getElementById('schemeSelector');
+  const selectorLabel = document.getElementById('selectorLabel');
+  if (!selector) return;
+
+  const evaluatedList = state.schemeCatalog.map(scheme => applyBackendEvaluation(evaluateSchemeReadiness(scheme)));
+  state.evaluatedSchemes = evaluatedList;
+
+  // Filter ONLY ELIGIBLE schemes if showEligibleOnlyMode is true
+  const displayList = state.showEligibleOnlyMode
+    ? evaluatedList.filter(s => s.isDemographicEligible)
+    : evaluatedList;
+
+  if (selectorLabel) {
+    selectorLabel.textContent = state.schemeCatalogError
+      || (state.showEligibleOnlyMode
+        ? `Showing Eligible Schemes (${displayList.length} matched out of ${evaluatedList.length} total catalog schemes)`
+        : `Showing All Catalog Schemes (${displayList.length} total schemes)`);
+  }
+
+  // Preselect from URL parameter if present
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramScheme = urlParams.get('scheme') || urlParams.get('schemeId');
+
+  if (paramScheme) {
+    const matched = evaluatedList.find(s => s.id === paramScheme || s.name.toLowerCase() === paramScheme.toLowerCase());
+    if (matched) {
+      state.selectedSchemeId = matched.id;
+    }
+  }
+
+  if (!displayList.some(s => s.id === state.selectedSchemeId) && displayList.length > 0) {
+    state.selectedSchemeId = displayList[0].id;
+  }
+
+  if (displayList.length === 0) {
+    const emptyMessage = state.schemeCatalogError || 'No eligible schemes match your current demographic profile inputs';
+    selector.innerHTML = `<option value="">${emptyMessage}</option>`;
+    return;
+  }
+
+  selector.innerHTML = displayList.map(s => `
+    <option value="${s.id}" ${s.id === state.selectedSchemeId ? 'selected' : ''}>
+      ${s.name} (${s.readinessScore}% ready)
+    </option>
+  `).join('');
+
+  selector.onchange = (e) => {
+    state.selectedSchemeId = e.target.value;
+    renderAllReadinessPanels();
+  };
+}
+
+function renderSchemeMetadata(selectedScheme) {
+  const metaEl = document.getElementById('schemeMeta');
+  const badgeEl = document.getElementById('schemeBadge');
+  if (!metaEl || !selectedScheme) return;
+
+  const readinessColor = selectedScheme.readinessScore >= 80 ? '#16a34a' : (selectedScheme.readinessScore >= 50 ? '#f59e0b' : '#dc2626');
+  if (badgeEl) {
+    badgeEl.textContent = selectedScheme.is100PercentReady ? '100% Ready' : `${selectedScheme.readinessScore}% Ready`;
+    badgeEl.style.background = selectedScheme.is100PercentReady ? '#dcfce7' : '#fff7ed';
+    badgeEl.style.color = readinessColor;
+  }
+
+  metaEl.innerHTML = `
+    <div class="meta-header">
+      <h4 class="meta-title">${selectedScheme.name}</h4>
+      <span class="meta-level-tag">${selectedScheme.level || 'Tamil Nadu'}</span>
+    </div>
+    <p class="meta-dept">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/>
+      </svg>
+      <span>${selectedScheme.department}</span>
+    </p>
+    <p class="meta-summary">${selectedScheme.summary}</p>
+    <div class="meta-benefits">
+      <div class="meta-benefits-title">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v12M15 9.5A3.5 3.5 0 0 0 8.5 8M8.5 14.5A3.5 3.5 0 0 0 15 16"/>
+        </svg>
+        <span>Benefits & Assistance</span>
+      </div>
+      <div>${selectedScheme.benefits || 'Welfare support assistance'}</div>
+    </div>
+    <div class="meta-docs-overview">
+      <strong>Required Documents (${selectedScheme.requiredDocs.length}):</strong>
+      <span>${selectedScheme.requiredDocs.join(', ')}</span>
+    </div>
+  `;
+}
+
+function renderReadinessGauge(selectedScheme) {
+  const ring = document.getElementById('scoreRing');
+  const value = document.getElementById('scoreValue');
+  const status = document.getElementById('scoreStatus');
+  if (!ring || !value || !status || !selectedScheme) return;
+
+  const score = Math.max(0, Math.min(100, selectedScheme.readinessScore || 0));
+  const color = score >= 80 ? '#16a34a' : (score >= 50 ? '#f59e0b' : '#dc2626');
+  const angle = (score / 100) * 360;
+
+  ring.style.background = `conic-gradient(${color} ${angle}deg, #e2e8f0 0deg 360deg)`;
+  value.textContent = `${score}%`;
+
+  if (selectedScheme.is100PercentReady) {
+    status.innerHTML = `<span style="color:#16a34a; font-weight:700;">100% Ready to Apply</span>`;
+  } else if (selectedScheme.missingDocs.length > 0 && selectedScheme.missingFields.length > 0) {
+    status.innerHTML = `Missing <strong>${selectedScheme.missingFields.length} details</strong> and <strong>${selectedScheme.missingDocs.length} documents</strong>`;
+  } else if (selectedScheme.missingDocs.length > 0) {
+    status.innerHTML = `Missing <strong>${selectedScheme.missingDocs.length} documents</strong> to verify`;
+  } else {
+    status.innerHTML = `Fill <strong>${selectedScheme.missingFields.length} profile details</strong> below`;
+  }
+}
+
+function renderMissingFieldsForm(selectedScheme) {
+  const listEl = document.getElementById('missingDetailsList');
+  const badgeEl = document.getElementById('detailCountBadge');
+  const formEl = document.getElementById('detailFillForm');
+  if (!listEl || !badgeEl || !formEl || !selectedScheme) return;
+
+  const missing = selectedScheme.missingFields || [];
+  badgeEl.textContent = `${missing.length} missing`;
+  badgeEl.className = missing.length > 0 ? 'mini-badge warning' : 'mini-badge success';
+
+  if (missing.length === 0) {
+    listEl.innerHTML = `
+      <div class="success-box">
+        <span class="success-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <div>
+          <strong>All Demographic Details Complete</strong>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #166534;">Every profile detail required for ${selectedScheme.name} has been provided.</p>
+        </div>
+      </div>
+    `;
+    formEl.innerHTML = '';
+    return;
+  }
+
+  listEl.innerHTML = missing.map(field => `
+    <div class="check-row missing">
+      <div class="check-label">
+        <span class="check-dot" aria-hidden="true">!</span>
+        <span>${getLabelForField(field)}</span>
+      </div>
+      <small style="color: #c2410c; font-weight: 600;">Action required</small>
+    </div>
+  `).join('');
+
+  // Render input controls for missing fields
+  const fieldOptions = {
+    gender: ['Male', 'Female', 'Transgender', 'Other'],
+    state: ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Other'],
+    occupation: ['Student', 'Daily Wage / Artisan', 'Farmer', 'Private Job', 'Government Job', 'Self-employed', 'Unemployed'],
+    education: ['School', 'Diploma', 'Undergraduate', 'Postgraduate', 'Other'],
+    employment: ['Employed', 'Unemployed', 'Self-employed', 'Student'],
+    social_category: ['General', 'OBC', 'BC', 'MBC/DNC', 'SC', 'ST', 'Other'],
+    residence: ['Urban', 'Rural'],
+    disability: ['No', 'Yes']
+  };
+
+  const inputsHtml = missing.map(field => {
+    const label = getLabelForField(field);
+    const val = getFieldValue(state.profile, field);
+    const opts = fieldOptions[field];
+
+    if (opts) {
+      return `
+        <div class="form-field">
+          <label for="fill-${field}">${label}</label>
+          <select id="fill-${field}" data-field="${field}" required class="form-select">
+            <option value="">Select ${label}</option>
+            ${opts.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}
+          </select>
+        </div>
+      `;
+    }
+
+    const type = ['age', 'annual_income'].includes(field) ? 'number' : 'text';
+    return `
+      <div class="form-field">
+        <label for="fill-${field}">${label}</label>
+        <input type="${type}" id="fill-${field}" data-field="${field}" value="${val}" placeholder="Enter ${label.toLowerCase()}" required class="form-input" />
+      </div>
+    `;
+  }).join('');
+
+  formEl.innerHTML = `
+    ${inputsHtml}
+    <button type="submit" id="saveProfileBtn" class="btn btn-primary primary-btn wide">Save & Update Profile Details</button>
+  `;
+
+  formEl.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const saveBtn = document.getElementById('saveProfileBtn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving details...';
+    }
+
+    const updatedProfile = { ...state.profile };
+    const inputs = formEl.querySelectorAll('[data-field]');
+    
+    inputs.forEach(input => {
+      const field = input.dataset.field;
+      let val = input.value;
+      if (input.type === 'number') val = val === '' ? '' : Number(val);
+      if (field === 'annual_income') {
+        updatedProfile.annual_income = val;
+        updatedProfile.incomeNumeric = parseIncomeValue(val);
+      } else {
+        updatedProfile[field] = val;
+      }
+    });
+
+    state.profile = normalizeProfile(updatedProfile);
+    saveProfileToSession(state.profile);
+
+    // ONLY for logged in users: Sync to Supabase user_info table
+    if (state.user && supabase) {
+      try {
+        const payload = {
+          uid: state.user.id,
+          email: state.user.email || '',
+          gender: state.profile.gender || '',
+          state: state.profile.state || '',
+          district: state.profile.district || '',
+          residence_type: state.profile.residence || 'Urban',
+          occupation: state.profile.occupation || '',
+          annual_family_income: state.profile.incomeNumeric || parseIncomeValue(state.profile.annual_income) || 0,
+          social_category: state.profile.social_category || '',
+          education_level: state.profile.education || '',
+          employment_status: state.profile.employment || '',
+          marital_status: state.profile.marital_status || '',
+          disability_status: state.profile.disability || 'No',
+          special_beneficiary_status: state.profile.special || 'None',
+          date_of_birth: state.profile.date_of_birth || '',
+          updated_at: new Date().toISOString()
+        };
+        await supabase.from('user_info').upsert(payload, { onConflict: 'uid' });
+
+        // Save readiness summary for logged in user to user_readiness table
+        await syncUserReadinessToDatabase();
+      } catch (err) {
+        console.warn('[UNIORA Readiness] Supabase profile sync notice:', err);
+      }
+    }
+
+    // Re-evaluate and re-render all panels
+    renderAllReadinessPanels();
+  };
+}
+
+function renderRequiredDocumentsChecklist(selectedScheme) {
+  const listEl = document.getElementById('requiredDocumentsList');
+  const badgeEl = document.getElementById('documentCountBadge');
+  const verifyBtn = document.getElementById('verifyDocumentsBtn');
+  if (!listEl || !badgeEl || !selectedScheme) return;
+
+  const missingDocs = selectedScheme.missingDocs || [];
+  badgeEl.textContent = `${missingDocs.length} missing`;
+  badgeEl.className = missingDocs.length > 0 ? 'mini-badge warning' : 'mini-badge success';
+
+  listEl.innerHTML = selectedScheme.requiredDocs.map(docName => {
+    const isMissing = missingDocs.includes(docName);
+    const returnUrl = `../../../features/03_documents_verification/frontend/index.html?doc=${encodeURIComponent(docName)}&return=readiness&scheme=${encodeURIComponent(selectedScheme.id)}`;
+
+    return `
+      <div class="check-row ${isMissing ? 'missing' : 'ok'}">
+        <div class="check-label">
+          <span class="check-dot" aria-hidden="true">
+            ${isMissing ? '!' : `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            `}
+          </span>
+          <div>
+            <strong>${docName}</strong>
+            <small style="display:block; color:#64748b; font-size: 12px;">${isMissing ? 'Required for verification' : 'Verified & on file'}</small>
+          </div>
+        </div>
+        <div>
+          ${isMissing 
+            ? `<a href="${returnUrl}" class="btn btn-outline btn-sm verify-btn-link">Verify Document</a>`
+            : `<span class="verified-pill-tag">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Verified
+              </span>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (verifyBtn) {
+    if (missingDocs.length > 0) {
+      const firstMissing = missingDocs[0];
+      verifyBtn.style.display = 'block';
+      verifyBtn.onclick = () => {
+        window.location.href = `../../../features/03_documents_verification/frontend/index.html?doc=${encodeURIComponent(firstMissing)}&return=readiness&scheme=${encodeURIComponent(selectedScheme.id)}`;
+      };
+    } else {
+      verifyBtn.style.display = 'none';
+    }
+  }
+}
+
+function renderNextStepsActionFlow(selectedScheme) {
+  const container = document.getElementById('nextStepsContent');
+  if (!container || !selectedScheme) return;
+
+  if (selectedScheme.is100PercentReady) {
+    container.innerHTML = `
+      <div class="ready-banner-box">
+        <div class="banner-badge">100% READINESS ACHIEVED</div>
+        <h3>You are completely ready to apply for ${selectedScheme.name}</h3>
+        <p>All demographic criteria match and all required documents are verified.</p>
+        <div class="action-buttons-group">
+          <a href="${selectedScheme.application_url || '#'}" target="_blank" rel="noopener noreferrer" class="btn btn-primary primary-btn apply-now-btn">
+            Proceed to Official Application Portal
+          </a>
+          <button type="button" id="scrollToCorrectionBtn" class="btn btn-outline ghost-btn">
+            Need Document Correction or Service Help?
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="action-needed-box">
+        <div class="banner-badge warning">ACTION NEEDED BEFORE APPLYING</div>
+        <h3>Complete missing items for ${selectedScheme.name}</h3>
+        <p>You have <strong>${selectedScheme.missingFields.length} missing detail(s)</strong> and <strong>${selectedScheme.missingDocs.length} missing document(s)</strong>.</p>
+        <div class="action-buttons-group">
+          ${selectedScheme.missingDocs.length > 0 ? `
+            <a href="../../../features/03_documents_verification/frontend/index.html?doc=${encodeURIComponent(selectedScheme.missingDocs[0])}&return=readiness&scheme=${encodeURIComponent(selectedScheme.id)}" class="btn btn-primary primary-btn">
+              Verify Missing Documents Now
+            </a>
+          ` : ''}
+          <button type="button" id="scrollToCorrectionBtn" class="btn btn-outline secondary-btn">
+            Find Nearby Service Center for Document Errors
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  const scrollBtn = document.getElementById('scrollToCorrectionBtn');
+  if (scrollBtn) {
+    scrollBtn.onclick = () => {
+      document.getElementById('servicesBox')?.scrollIntoView({ behavior: 'smooth' });
+    };
+  }
+}
+
+function renderNearbyServicesMap() {
+  const districtSelect = document.getElementById('readinessDistrictSelect');
+  const talukSelect = document.getElementById('readinessTalukSelect');
+  const mapFrame = document.getElementById('serviceMapFrame');
+  const locationLabel = document.getElementById('mapLocationLabel');
+  const locationBadge = document.getElementById('mapActiveLocationBadge');
+  const serviceCardsContainer = document.getElementById('serviceCards');
+
+  if (!districtSelect || !talukSelect) return;
+
+  const districts = Object.keys(state.taluksData).sort((a, b) => a.localeCompare(b));
+
+  if (districtSelect.options.length <= 1) {
+    districtSelect.innerHTML = '<option value="">Select District</option>' + districts.map(d => `
+      <option value="${d}">${d}</option>
+    `).join('');
+  }
+
+  // Preselect user's district or default to Chennai
+  const activeDistrict = state.selectedDistrict || state.profile?.district || 'Chennai';
+  if (districts.includes(activeDistrict)) {
+    districtSelect.value = activeDistrict;
+    state.selectedDistrict = activeDistrict;
+    populateTalukSelect(activeDistrict);
+  }
+
+  districtSelect.onchange = (e) => {
+    const dist = e.target.value;
+    state.selectedDistrict = dist;
+    state.selectedTaluk = '';
+    populateTalukSelect(dist);
+    updateMapAndOfficeCards();
+  };
+
+  talukSelect.onchange = (e) => {
+    state.selectedTaluk = e.target.value;
+    updateMapAndOfficeCards();
+  };
+
+  updateMapAndOfficeCards();
+}
+
+function populateTalukSelect(district) {
+  const talukSelect = document.getElementById('readinessTalukSelect');
+  if (!talukSelect) return;
+
+  const taluks = state.taluksData[district] || [];
+  if (!taluks.length) {
+    talukSelect.innerHTML = '<option value="">No taluks available</option>';
+    talukSelect.disabled = true;
+    return;
+  }
+
+  talukSelect.disabled = false;
+  talukSelect.innerHTML = '<option value="">Select Taluk</option>' + taluks.map(t => `
+    <option value="${t}">${t}</option>
+  `).join('');
+
+  if (!state.selectedTaluk && taluks.length > 0) {
+    state.selectedTaluk = taluks[0];
+    talukSelect.value = taluks[0];
+  }
+}
+
+function updateMapAndOfficeCards() {
+  const mapFrame = document.getElementById('serviceMapFrame');
+  const locationLabel = document.getElementById('mapLocationLabel');
+  const locationBadge = document.getElementById('mapActiveLocationBadge');
+  const cardsContainer = document.getElementById('serviceCards');
+
+  const district = state.selectedDistrict || state.profile?.district || 'Chennai';
+  const taluk = state.selectedTaluk || district;
+
+  if (locationLabel) locationLabel.textContent = `Nearby Government Service Centers in ${taluk}, ${district}`;
+  if (locationBadge) locationBadge.textContent = `${district}`;
+
+  if (mapFrame) {
+    const queryStr = encodeURIComponent(`Arasu e-Sevai Centre ${taluk} ${district} Tamil Nadu`);
+    mapFrame.src = `https://maps.google.com/maps?q=${queryStr}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
+  }
+
+  if (cardsContainer) {
+    const offices = [
+      {
+        name: 'District Collectorate',
+        iconSvg: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/></svg>`,
+        summary: `District administration, grievances & correction support for ${district}.`,
+        query: `District Collectorate ${district} Tamil Nadu`
+      },
+      {
+        name: 'Taluk Office',
+        iconSvg: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+        summary: `Revenue, nativity & income certificate correction desk for ${taluk}.`,
+        query: `Taluk Office ${taluk} ${district} Tamil Nadu`
+      },
+      {
+        name: 'Arasu e-Sevai Centre',
+        iconSvg: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+        summary: `Citizen service desk for document verification & error correction.`,
+        query: `Arasu e-Sevai Centre ${taluk} ${district} Tamil Nadu`
+      },
+      {
+        name: 'Social Welfare Office',
+        iconSvg: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+        summary: `Welfare scheme guidance & document mismatch correction desk.`,
+        query: `Social Welfare Office ${district} Tamil Nadu`
+      }
+    ];
+
+    cardsContainer.innerHTML = offices.map(off => `
+      <div class="service-card">
+        <div class="service-header">
+          <div class="service-icon">${off.iconSvg}</div>
+          <div class="service-name">${off.name}</div>
+        </div>
+        <p class="service-summary">${off.summary}</p>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(off.query)}" target="_blank" rel="noopener noreferrer" class="service-link">
+          Open in Maps
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+      </div>
+    `).join('');
+  }
+}
+
+function updateSummaryPills() {
+  const eligibleEl = document.getElementById('eligibleCount');
+  const bestEl = document.getElementById('bestReadiness');
+  const verifiedDocsEl = document.getElementById('verifiedDocsCount');
+
+  const evaluated = state.evaluatedSchemes || [];
+  const eligibleCount = evaluated.filter(s => s.isDemographicEligible).length;
+  const selectedScheme = evaluated.find(s => s.id === state.selectedSchemeId);
+  const selectedScore = selectedScheme ? selectedScheme.readinessScore : (evaluated.length > 0 ? evaluated[0].readinessScore : 0);
+
+  if (eligibleEl) eligibleEl.textContent = String(eligibleCount);
+  if (bestEl) bestEl.textContent = `${selectedScore}%`;
+  if (verifiedDocsEl) verifiedDocsEl.textContent = String(state.verifiedDocs.length);
+}
+
+async function syncUserReadinessToDatabase() {
+  if (!state.user || !supabase) return;
+  try {
+    const accessToken = await getReadinessAccessToken();
+    if (!accessToken) return;
+
+    const selectedScheme = state.evaluatedSchemes.find(s => s.id === state.selectedSchemeId);
+    const payload = {
+      selected_scheme_id: state.selectedSchemeId || '',
+      readiness_score: selectedScheme ? selectedScheme.readinessScore : 0,
+      eligible_schemes_count: state.evaluatedSchemes.filter(s => s.isDemographicEligible).length,
+      readiness_data: {
+        selected_scheme_name: selectedScheme ? selectedScheme.name : '',
+        missing_fields: selectedScheme ? selectedScheme.missingFields : [],
+        missing_docs: selectedScheme ? selectedScheme.missingDocs : [],
+        verified_docs_count: state.verifiedDocs.length,
+        updated_at: new Date().toISOString()
+      }
+    };
+    const response = await fetch(`${READINESS_API_BASE}/readiness/saved`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Saved readiness request failed');
+  } catch (err) {
+    console.warn('[UNIORA Readiness] Sync user_readiness notice:', err);
+  }
+}
+
+function renderAllReadinessPanels() {
+  // Re-evaluate schemes using current state.profile & state.verifiedDocs
+  state.evaluatedSchemes = state.schemeCatalog.map(scheme => applyBackendEvaluation(evaluateSchemeReadiness(scheme)));
+
+  const displayList = state.showEligibleOnlyMode
+    ? state.evaluatedSchemes.filter(s => s.isDemographicEligible)
+    : state.evaluatedSchemes;
+
+  const selectedScheme = displayList.find(s => s.id === state.selectedSchemeId) || displayList[0] || state.evaluatedSchemes[0];
+  if (!selectedScheme) return;
+
+  renderSchemeSelector();
+  renderSchemeMetadata(selectedScheme);
+  renderReadinessGauge(selectedScheme);
+  renderMissingFieldsForm(selectedScheme);
+  renderRequiredDocumentsChecklist(selectedScheme);
+  renderNextStepsActionFlow(selectedScheme);
+  updateSummaryPills();
+
+  // If logged in, sync readiness score to DB in background
+  if (state.user && supabase) {
+    void syncUserReadinessToDatabase();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// INITIALIZATION
+// ---------------------------------------------------------------------------
+
+async function loadTaluksData() {
+  try {
+    const res = await fetch('../../../common/data/taluks.json');
+    if (!res.ok) throw new Error('Could not load taluks.json');
+    state.taluksData = await res.json();
+  } catch (err) {
+    console.warn('[UNIORA Readiness] Taluk data load warning:', err);
+    state.taluksData = { 'Chennai': ['Egmore-Nungambakkam', 'Mambalam-Guindy'] };
+  }
+}
+
+async function initReadinessApp() {
+  initActiveNavLink();
+  initNavbarMenu();
+  try {
+    await initNavbarAuth();
+  } catch (e) {
+    console.warn('[UNIORA Readiness] navbar auth notice:', e);
+  }
+
+  setupToggleFilterButtons();
+
+  // Determine logged-in user with robust fallback to session cache
+  let currentUser = await getCurrentUser();
+  if (!currentUser) {
+    const session = await getCurrentSession();
+    if (session && session.user) {
+      currentUser = session.user;
+    } else {
+      currentUser = getCachedSessionUser();
+    }
+  }
+  state.user = currentUser;
+  state.profile = null;
+  state.verifiedDocs = [];
+  state.backendEvaluations = {};
+
+  const badgeEl = document.getElementById('userStateBadge');
+  if (badgeEl) {
+    if (currentUser) {
+      const displayName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'User';
+      badgeEl.textContent = `Logged in (${displayName})`;
+      badgeEl.style.background = '#dcfce7';
+      badgeEl.style.color = '#15803d';
+    } else {
+      badgeEl.textContent = 'Guest mode (No Database Sync)';
+      badgeEl.style.background = '#ecfeff';
+      badgeEl.style.color = '#0f766e';
+    }
+  }
+
+  // 1. Fetch user profile from Supabase if logged in
+  if (currentUser && supabase) {
+    try {
+      const { data, error } = await supabase.from('user_info').select('*').eq('uid', currentUser.id).maybeSingle();
+      if (!error && data) {
+        state.profile = normalizeProfile({
+          gender: data.gender || '',
+          state: data.state || 'Tamil Nadu',
+          district: data.district || '',
+          age: data.age || '',
+          occupation: data.occupation || '',
+          annual_income: data.annual_family_income || data.annual_income || '',
+          incomeNumeric: data.annual_family_income || null,
+          social_category: data.social_category || '',
+          education: data.education_level || data.education || '',
+          employment: data.employment_status || data.employment || '',
+          residence: data.residence_type || data.residence || 'Urban',
+          disability: data.disability_status || data.disability || 'No',
+          marital_status: data.marital_status || '',
+          special: data.special_beneficiary_status || data.special || 'None',
+          date_of_birth: data.date_of_birth || ''
+        });
+      }
+    } catch (err) {
+      console.warn('[UNIORA Readiness] Supabase profile fetch notice:', err);
+    }
+  }
+
+  if (!state.profile) {
+    state.profile = normalizeProfile(buildInitialProfile());
+  }
+
+  // 2. Fetch verified documents from local storage & Supabase
+  state.verifiedDocs = getStoredDocs();
+
+  if (currentUser && supabase) {
+    try {
+      // Direct Supabase table query for verified documents
+      const { data: dbDocs, error } = await supabase.from('user_documents').select('*').eq('uid', currentUser.id);
+      if (!error && Array.isArray(dbDocs)) {
+        dbDocs.forEach(d => {
+          const docType = d.document_type;
+          const isVerified = (d.is_verified === true) || (d.verification_status === 'verified') || (d.is_verified === undefined && d.verification_status === undefined);
+          if (isVerified) {
+            if (!state.verifiedDocs.some(vd => (vd.document_type || vd.name || vd.document_name) === docType)) {
+              state.verifiedDocs.push({ document_type: docType, data: d.extracted_data || {} });
+            }
+          }
+        });
+      }
+
+      // Restore the saved scheme selection through the authenticated readiness API
+      const accessToken = await getReadinessAccessToken();
+      if (accessToken) {
+        const response = await fetch(`${READINESS_API_BASE}/readiness/saved`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (!response.ok) throw new Error('Saved readiness request failed');
+        const savedData = await response.json();
+        const savedReadiness = savedData?.readiness;
+        if (savedReadiness?.selected_scheme_id) {
+          state.selectedSchemeId = savedReadiness.selected_scheme_id;
+        }
+      }
+    } catch (e) {
+      console.warn('[UNIORA Readiness] DB docs/readiness fetch notice:', e);
+    }
+  }
+
+  await loadTaluksData();
+  await fetchSchemeCatalog();
+
+  renderSchemeSelector();
+  renderAllReadinessPanels();
+  renderNearbyServicesMap();
+}
+
+// Subscribe to auth state changes for live re-rendering on login/logout
+if (onAuthStateChange) {
+  onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+      initReadinessApp();
+    }
+  });
+}
+
+// Real-time listener for document upload/verification updates from other windows/tabs or back navigation
+window.addEventListener('storage', () => {
+  state.verifiedDocs = getStoredDocs();
+  renderAllReadinessPanels();
+});
+
+window.addEventListener('focus', () => {
+  state.verifiedDocs = getStoredDocs();
+  renderAllReadinessPanels();
+});
+
+document.addEventListener('DOMContentLoaded', initReadinessApp);

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Readiness - UNIORA</title>
+
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Common Design System -->
+  <link rel="stylesheet" href="../../../common/css/global.css">
+  <link rel="stylesheet" href="../../../common/components/navbar.css">
+  <link rel="stylesheet" href="../../../common/css/responsive.css">
+
+  <!-- Feature-specific stylesheet -->
+  <link rel="stylesheet" href="./style.css">
+
+  <!-- INSTANT 0MS SYNCHRONOUS AUTH HYDRATION (Prevents page-refresh flicker) -->
+  <script>
+    (function () {
+      try {
+        var name = localStorage.getItem('uniora_cached_user_name');
+        var hasUser = false;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+            var raw = localStorage.getItem(k);
+            if (raw) {
+              var p = JSON.parse(raw);
+              if (p && p.user) {
+                hasUser = true;
+                if (!name) {
+                  name = p.user.user_metadata?.full_name || p.user.user_metadata?.name || p.user.email?.split('@')[0] || 'User';
+                }
+                break;
+              }
+            }
+          }
+        }
+        if (hasUser) {
+          document.write('<style>#navbarUser{display:flex !important;} #navbarLogin{display:none !important;} #navbarAuth.is-loading > *{visibility:visible !important;} #navbarAuth.is-loading::after{display:none !important;}</style>');
+        } else {
+          document.write('<style>#navbarLogin{display:inline-flex !important;} #navbarUser{display:none !important;} #navbarAuth.is-loading > *{visibility:visible !important;} #navbarAuth.is-loading::after{display:none !important;}</style>');
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+
+<body class="dashboard-page readiness-page">
+  <div class="app-layout">
+    <!-- ==========================================================================
+         COMMON NAVBAR (Pre-rendered inline for ZERO blinking/flicker)
+         ========================================================================== -->
+    <div id="navbar-container">
+      <header class="navbar" id="appNavbar">
+        <div class="navbar-container">
+          <!-- UNIORA LOGO -->
+          <a href="../../../dashboard/index.html" class="navbar-brand" aria-label="UNIORA Dashboard">
+            <img src="../../../common/assets/uniora_logo_navbar.png" alt="UNIORA" class="navbar-logo" />
+          </a>
+
+          <!-- MAIN NAVIGATION (6 Features) -->
+          <nav class="navbar-menu" id="navbarMenu" aria-label="Main navigation">
+            <a href="../../../dashboard/index.html" class="navbar-link" data-page="dashboard">
+              <span class="navbar-link-text">Dashboard</span>
+            </a>
+            <a href="../../../features/01_scheme_recommendation/frontend/index.html" class="navbar-link" data-page="schemes">
+              <span class="navbar-link-text">Schemes</span>
+            </a>
+            <a href="../../../features/03_documents_verification/frontend/index.html" class="navbar-link" data-page="documents">
+              <span class="navbar-link-text">Documents</span>
+            </a>
+            <a href="../../../features/04_eligible_schemes/frontend/index.html" class="navbar-link" data-page="eligible">
+              <span class="navbar-link-text">Eligible</span>
+            </a>
+            <a href="../../../features/05_my_readiness/frontend/index.html" class="navbar-link navbar-link--active" data-page="readiness">
+              <span class="navbar-link-text">Readiness</span>
+            </a>
+            <a href="../../../features/06_government_services/frontend/index.html" class="navbar-link" data-page="services">
+              <span class="navbar-link-text">Services</span>
+            </a>
+            <a href="../../../features/02_ask_uniora/frontend/index.html" class="navbar-link navbar-link-ask" data-page="ask">
+              <span class="navbar-link-text">Ask Uniora</span>
+            </a>
+          </nav>
+
+          <!-- RIGHT CLUSTER (Toggle + Supabase Auth) -->
+          <div class="navbar-right">
+            <button type="button" class="navbar-toggle" id="navbarToggle"
+              aria-label="Open navigation menu" aria-expanded="false" aria-controls="navbarMenu">
+              <span class="navbar-toggle-bar"></span>
+              <span class="navbar-toggle-bar"></span>
+              <span class="navbar-toggle-bar"></span>
+            </button>
+
+            <div class="navbar-auth is-loading" id="navbarAuth">
+              <div class="navbar-user" id="navbarUser" hidden>
+                <a href="../../../features/10_profile/frontend/index.html" class="navbar-profile" id="navbarProfileLink" aria-label="View Profile">
+                  <div class="navbar-avatar" id="navbarAvatar" aria-hidden="true">U</div>
+                  <span class="navbar-user-name" id="navbarUserName">User</span>
+                </a>
+              </div>
+              <a href="../../../auth/login/index.html" class="navbar-login" id="navbarLogin" hidden>
+                LOGIN
+              </a>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div class="navbar-overlay" id="navbarOverlay"></div>
+    </div>
+
+    <!-- ==============================================================
+         MAIN CONTENT (Matching 01_scheme_recommendation template)
+         ============================================================== -->
+    <main class="schemes-main readiness-main" id="mainContent">
+
+      <!-- PAGE HEADING -->
+      <section class="page-heading">
+        <div class="page-heading__text">
+          <div class="page-heading__title-row">
+            <h1 class="page-heading__title">My Readiness</h1>
+            <span class="header-badge" id="userStateBadge">Guest mode</span>
+          </div>
+          <p class="page-heading__subtitle">
+            Evaluate your preparedness for welfare schemes, complete required demographic details, and track document verifications.
+          </p>
+        </div>
+
+        <div class="info-note" role="note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+            <path d="M12 11v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="8" r="1" fill="currentColor" />
+          </svg>
+          <span>
+            Readiness scores reflect demographic eligibility criteria and verified documents. Final eligibility and approvals are granted by the respective government department.
+          </span>
+        </div>
+      </section>
+
+      <!-- SUMMARY OVERVIEW METRICS -->
+      <section class="readiness-summary-strip" aria-label="Readiness overview metrics">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <div class="stat-card__content">
+            <span class="stat-card__label">Eligible Schemes</span>
+            <strong class="stat-card__value" id="eligibleCount">0</strong>
+          </div>
+        </div>
+
+        <div class="stat-card stat-card--highlight">
+          <div class="stat-card__icon stat-card__icon--primary">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div class="stat-card__content">
+            <span class="stat-card__label">Selected Readiness</span>
+            <strong class="stat-card__value" id="bestReadiness">0%</strong>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div class="stat-card__content">
+            <span class="stat-card__label">Verified Documents</span>
+            <strong class="stat-card__value" id="verifiedDocsCount">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. ELIGIBLE SCHEME SELECTOR & READINESS GAUGE -->
+      <section class="readiness-grid">
+        <!-- Scheme Dropdown Selector & Details -->
+        <div class="card-box selector-panel">
+          <div class="section-head">
+            <h3>1. Select Eligible Scheme</h3>
+            <span class="mini-badge success" id="schemeBadge">Eligible Schemes</span>
+          </div>
+
+          <div class="filter-toggle-row">
+            <label class="field-label" for="schemeSelector" id="selectorLabel">Showing All Available Schemes</label>
+            <div class="toggle-mode-group">
+              <button type="button" id="toggleEligibleOnlyBtn" class="toggle-btn active">Eligible Schemes Only</button>
+              <button type="button" id="toggleAllSchemesBtn" class="toggle-btn">Show All Schemes</button>
+            </div>
+          </div>
+
+          <select id="schemeSelector" class="scheme-select" aria-label="Select scheme to evaluate readiness">
+            <option value="">Evaluating eligible schemes...</option>
+          </select>
+          <div id="schemeMeta" class="scheme-meta"></div>
+        </div>
+
+        <!-- Scheme Specific Readiness Gauge -->
+        <div class="card-box score-panel">
+          <div class="section-head text-center" style="width:100%;">
+            <h3 style="margin: 0 auto;">Readiness Gauge</h3>
+          </div>
+          <div class="score-ring-wrap">
+            <div class="score-ring" id="scoreRing">
+              <div class="score-ring-inner">
+                <strong id="scoreValue">0%</strong>
+                <span>score</span>
+              </div>
+            </div>
+          </div>
+          <div class="score-status" id="scoreStatus">Select a scheme to view readiness</div>
+        </div>
+      </section>
+
+      <!-- 2. NEEDED DETAILS & DOCUMENT VERIFICATION GRID -->
+      <section class="details-grid">
+        <!-- Missing Demographic Details Form -->
+        <div class="card-box details-box" id="missingDetailsBox">
+          <div class="section-head">
+            <div>
+              <h3>2. Missing Details for Scheme</h3>
+              <p class="section-subtext">Fill only missing details needed for the selected scheme.</p>
+            </div>
+            <span class="mini-badge warning" id="detailCountBadge">0 missing</span>
+          </div>
+          <div id="missingDetailsList" class="list-stack"></div>
+          <form id="detailFillForm" class="detail-fill-form"></form>
+        </div>
+
+        <!-- Scheme Required Documents Checklist & Verify Nav -->
+        <div class="card-box docs-box" id="requiredDocsBox">
+          <div class="section-head">
+            <div>
+              <h3>3. Required Documents Status</h3>
+              <p class="section-subtext">Verified documents vs missing documents for this scheme.</p>
+            </div>
+            <span class="mini-badge warning" id="documentCountBadge">0 missing</span>
+          </div>
+          <div id="requiredDocumentsList" class="list-stack"></div>
+          <div class="action-row">
+            <button type="button" id="verifyDocumentsBtn" class="btn btn-primary wide">Verify Missing Documents</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. PROCEED TO APPLY / NEXT STEPS -->
+      <section class="card-box actions-panel" id="actionFlowBox">
+        <div class="section-head">
+          <h3>4. Next Steps & Application Readiness</h3>
+        </div>
+        <div id="nextStepsContent" class="next-steps-content">
+          <!-- Dynamically populated based on readiness score -->
+        </div>
+      </section>
+
+      <!-- 4. NEARBY SERVICE CENTERS & CORRECTION DESKS -->
+      <section class="card-box services-panel" id="servicesBox">
+        <div class="section-head">
+          <div>
+            <h3>5. Nearby Government Service & Correction Centers</h3>
+            <p class="section-subtext">Visit a nearby office or e-Sevai centre to correct mistakes or document mismatches.</p>
+          </div>
+        </div>
+
+        <!-- District & Taluk Selector for Map -->
+        <div class="location-filter-bar">
+          <div class="filter-field">
+            <label for="readinessDistrictSelect">District</label>
+            <select id="readinessDistrictSelect" class="location-select" aria-label="Select district">
+              <option value="">Select District</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="readinessTalukSelect">Taluk</label>
+            <select id="readinessTalukSelect" class="location-select" disabled aria-label="Select taluk">
+              <option value="">Select district first</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Embedded Interactive Google Map -->
+        <div class="map-container card-subbox">
+          <div class="map-header">
+            <span class="map-title" id="mapLocationLabel">Government Services Map</span>
+            <span class="map-badge" id="mapActiveLocationBadge">Tamil Nadu</span>
+          </div>
+          <iframe id="serviceMapFrame" class="service-map-iframe"
+            src="https://maps.google.com/maps?q=Arasu+e-Sevai+Centre+Tamil+Nadu&t=&z=12&ie=UTF8&iwloc=&output=embed"
+            loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"
+            title="Nearby Government Service Centers Map">
+          </iframe>
+        </div>
+
+        <!-- Office Cards Grid -->
+        <div id="serviceCards" class="service-cards"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="./script.js"></script>
+</body>
+
+</html>

@@ -7,6 +7,12 @@ import { supabase } from '../../../common/js/supabase.js';
 import { getCurrentUser, getCurrentSession } from '../../../common/js/auth.js';
 import { initNavbarAuth } from '../../../common/js/navbar.js';
 
+const API_BASE_URL = window.UNIORA_API_BASE_URL || window.ENV?.API_BASE_URL || (
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:8000/api'
+        : '/api'
+);
+
 // ============================================================
 // DOCUMENT TYPE DEFINITIONS & SCHEME PRIORITIES
 // ============================================================
@@ -53,10 +59,7 @@ const EXTENDED_DOCS = [
     'MGNREGA Job Card',
     'Udyam Certificate',
     'GST Certificate',
-    'Marriage Certificate',
-    'Death Certificate',
-    'Orphan Certificate',
-    'Widow Certificate',
+    'Marriage Certificate'
 ];
 
 const SVG = {
@@ -79,7 +82,6 @@ const SVG = {
     bonafide:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></svg>`,
     land:        `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 12 2 21 11 21 22 3 22"/><line x1="9" y1="22" x2="9" y2="14"/><line x1="15" y1="22" x2="15" y2="14"/><line x1="9" y1="14" x2="15" y2="14"/></svg>`,
     udid:        `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>`,
-    death:       `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>`,
     marriage:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
     domicile:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
     electricity: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
@@ -122,10 +124,7 @@ const DOCUMENT_TYPES = {
     'MGNREGA Job Card':         { icon: SVG.mgnrega,     fields: ['name', 'job_card_number', 'rural_status'], hint: 'Rural guaranteed employment card' },
     'Udyam Certificate':        { icon: SVG.udyam,       fields: ['name', 'business_registration', 'msme_status'], hint: 'MSME business & enterprise proof' },
     'GST Certificate':          { icon: SVG.gst,         fields: ['name', 'gst_number', 'business_registration'], hint: 'GST business registration proof' },
-    'Marriage Certificate':     { icon: SVG.marriage,    fields: ['name', 'spouse_name', 'marriage_date'], hint: 'Official legal proof of marriage' },
-    'Death Certificate':        { icon: SVG.death,       fields: ['deceased_name', 'date_of_death', 'issuing_authority'], hint: 'Official proof of death' },
-    'Orphan Certificate':       { icon: SVG.welfare,     fields: ['name', 'orphan_status', 'issuing_authority'], hint: 'Orphan welfare & fee waiver status' },
-    'Widow Certificate':        { icon: SVG.welfare,     fields: ['name', 'widow_status', 'husband_death_proof'], hint: 'Widow pension & welfare status' },
+    'Marriage Certificate':     { icon: SVG.marriage,    fields: ['name', 'spouse_name', 'marriage_date'], hint: 'Official legal proof of marriage' }
 };
 
 // ============================================================
@@ -943,7 +942,7 @@ export async function runExtraction() {
     try {
         const formData = new FormData();
         formData.append('file', file);
-        const res  = await fetch('http://localhost:8000/api/documents/process', { method: 'POST', body: formData });
+        const res  = await fetch(`${API_BASE_URL}/documents/process`, { method: 'POST', body: formData });
         const resp = await res.json();
 
         if (resp.status === 'error') {
@@ -1042,7 +1041,7 @@ export async function saveWizardDocument() {
 
             // 2. Also notify backend with Bearer token
             try {
-                await fetch('http://localhost:8000/api/documents/confirm', {
+                await fetch(`${API_BASE_URL}/documents/confirm`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1137,7 +1136,7 @@ export async function unverifyCurrentDocument() {
 
             // B. Backend API deletion
             try {
-                await fetch('http://localhost:8000/api/documents/remove', {
+                await fetch(`${API_BASE_URL}/documents/remove`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
